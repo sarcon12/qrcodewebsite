@@ -1,0 +1,147 @@
+<!-- report.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Attendance | Report</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --accent:#3b82f6;
+      --bg:#f9fafb;
+      --shadow:0 4px 14px rgba(0,0,0,.08);
+      --radius:.9rem;
+    }
+    *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+    body{margin:0;background:var(--bg);color:#111827}
+
+    header{
+      background:#fff;box-shadow:var(--shadow);
+      padding:1rem 1.5rem;
+      display:flex;justify-content:space-between;align-items:center;
+      flex-wrap:wrap;gap:.6rem;
+    }
+    header h1{margin:0;font-size:1.35rem}
+    nav{display:flex;flex-wrap:wrap;gap:1.2rem}
+    nav a{text-decoration:none;color:#374151;font-weight:500;font-size:.95rem}
+    nav a:hover{color:var(--accent)}
+
+    .controls{
+      margin:1.5rem 1.5rem 0;
+      display:flex;flex-wrap:wrap;gap:1rem;
+    }
+    input[type="search"]{
+      padding:.6rem .9rem;border:1px solid #d1d5db;border-radius:.5rem;
+      font-size:1rem;width:250px;
+    }
+    button{
+      padding:.6rem 1rem;border:none;border-radius:.5rem;
+      background:var(--accent);color:#fff;font-weight:600;cursor:pointer;
+    }
+
+    .table-wrap{margin:1rem 1.5rem 2rem;overflow-x:auto}
+    table{
+      width:100%;border-collapse:collapse;background:#fff;
+      border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+    }
+    th,td{
+      padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;
+      text-align:left;font-size:.9rem;
+    }
+    th{background:#f1f5f9;font-weight:600}
+    tr:last-child td{border-bottom:none}
+    .center{text-align:center;color:#6b7280;padding:2rem}
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Attendance Report</h1>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="qrcode.html">Generate QR</a>
+      <a href="attendance.html">Attendance Scanner</a>
+      <a href="index.html" onclick="logout()">Logout</a>
+    </nav>
+  </header>
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search name / email" oninput="render()">
+    <button onclick="downloadCSV()">Download CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Email</th><th>Date & Time</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <script>
+
+    const tbody = document.getElementById('tbody');
+    render();
+    window.addEventListener('storage', e=>{
+      if(['qr_participants','qr_attendance'].includes(e.key)) render();
+    });
+
+    function render(){
+      const participants = JSON.parse(localStorage.getItem('qr_participants')||'[]');
+      const logs         = JSON.parse(localStorage.getItem('qr_attendance') ||'[]');
+      const keyword      = document.getElementById('search').value.toLowerCase();
+
+      tbody.innerHTML='';
+      let index = 0;
+
+      [...logs].sort((a,b)=>new Date(b.time)-new Date(a.time)) // newest first
+        .forEach(log=>{
+          const user = participants.find(p=>p.code===log.code) || {};
+          const name  = user.name  || 'Unknown';
+          const email = user.email || '';
+
+          if(keyword && !name.toLowerCase().includes(keyword) && !email.toLowerCase().includes(keyword)) return;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${++index}</td>
+            <td>${name}</td>
+            <td>${email}</td>
+            <td>${new Date(log.time).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      if(index===0){
+        tbody.innerHTML = `<tr><td colspan="4" class="center">No records found.</td></tr>`;
+      }
+    }
+
+    function downloadCSV(){
+      const rows = [['Name','Email','Date & Time']];
+      const participants = JSON.parse(localStorage.getItem('qr_participants')||'[]');
+      const logs = JSON.parse(localStorage.getItem('qr_attendance')||'[]');
+      logs.forEach(l=>{
+        const u = participants.find(p=>p.code===l.code)||{};
+        rows.push([u.name||'', u.email||'', new Date(l.time).toLocaleString()]);
+      });
+      const csv = rows.map(r=>r.map(v=>`"${v.replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'attendance_report.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function logout(){
+      localStorage.removeItem('qr_logged_in');
+      location.href='login.html';
+    }
+  </script>
+</body>
+</html>

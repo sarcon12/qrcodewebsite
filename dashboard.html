@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Attendance | Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --accent:#3b82f6;
+      --bg:#f9fafb;
+      --radius:.85rem;
+      --shadow:0 4px 14px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+    body{margin:0;background:var(--bg);color:#111827}
+    header{
+      background:#fff;box-shadow:var(--shadow);
+      padding:1rem 1.5rem;
+      display:flex;justify-content:space-between;align-items:center;
+      flex-wrap:wrap;gap:.5rem;
+    }
+    header h1{margin:0;font-size:1.35rem}
+    nav{display:flex;flex-wrap:wrap;gap:1.2rem}
+    nav a{text-decoration:none;color:#374151;font-weight:500;font-size:.95rem}
+    nav a:hover{color:var(--accent)}
+    main{
+      padding:2rem;
+      display:grid;
+      gap:1.5rem;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    }
+    .card{
+      background:#fff;border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:1.6rem;text-align:center;
+    }
+    .card h2{margin:0;font-size:2.6rem;color:var(--accent)}
+    .card span{font-size:.95rem;color:#4b5563}
+
+    .table-wrap{grid-column:1/-1;overflow-x:auto}
+    table{
+      width:100%;border-collapse:collapse;background:#fff;
+      border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+    }
+    th,td{
+      padding:.75rem 1rem;border-bottom:1px solid #e5e7eb;
+      text-align:left;font-size:.9rem;
+    }
+    th{background:#f1f5f9;font-weight:600}
+    tr:last-child td{border-bottom:none}
+    .del-btn{
+      background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;
+    }
+    .del-btn:hover{color:#b91c1c}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Dashboard</h1>
+    <nav>
+      <a href="qrcode.html">Generate QR</a>
+      <a href="attendance.html">Attendance Scanner</a>
+      <a href="report.html">Report</a>
+      <a href="index.html" onclick="logout()">Logout</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2 id="totalParticipants">0</h2>
+      <span>Registered Students</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Fullname</th><th>E-mail</th></tr>
+        </thead>
+        <tbody id="partBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    render();
+    window.addEventListener('storage', e=>{
+      if(e.key==='qr_participants') render();
+    });
+
+    function render(){
+      let list = JSON.parse(localStorage.getItem('qr_participants') || '[]');
+      list.sort((a,b)=> a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
+
+      document.getElementById('totalParticipants').textContent = list.length;
+
+      const tbody = document.getElementById('partBody');
+      tbody.innerHTML = '';
+      if(list.length){
+        list.forEach((p,i)=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i+1}</td>
+            <td>${p.name}</td>
+            <td>${p.email||''}</td>
+            <td><button class="del-btn" onclick="removeParticipant('${p.code}')">🗑</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }else{
+        tbody.innerHTML = '<tr><td colspan="4">No participants yet.</td></tr>';
+      }
+    }
+
+   
+    function removeParticipant(code){
+      if(!confirm('Delete this participant?')) return;
+      let list = JSON.parse(localStorage.getItem('qr_participants') || '[]');
+      list = list.filter(p=>p.code!==code);
+      localStorage.setItem('qr_participants', JSON.stringify(list));
+      render();
+    }
+
+    function logout(){
+      localStorage.removeItem('qr_logged_in');
+      location.href='login.html';
+    }
+  </script>
+</body>
+</html>

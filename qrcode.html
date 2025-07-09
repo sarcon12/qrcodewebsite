@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generate QR & Register</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+  <style>
+    :root{--accent:#3b82f6;--shadow:0 4px 14px rgba(0,0,0,.08)}
+    *{box-sizing:border-box;font-family:Poppins,Arial,sans-serif}
+    body{margin:0;display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem;background:#f9fafb}
+
+    /* back button */
+    .top-bar{align-self:flex-start;margin-bottom:1rem}
+    .top-bar button{padding:.45rem 1rem;border:none;border-radius:.45rem;background:#6b7280;color:#fff;font-size:.9rem;cursor:pointer}
+
+    input,button{padding:.7rem 1rem;border-radius:.5rem;font-size:1rem}
+    input{border:1px solid #d1d5db;width:260px}
+    button.generate{border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+    .msg{font-size:.9rem;color:#059669}
+
+    /* gallery */
+    #gallery{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1.5rem;justify-content:center}
+    .qr-item{display:flex;flex-direction:column;align-items:center;gap:.4rem;background:#fff;padding:1rem;border-radius:.5rem;box-shadow:var(--shadow)}
+    .qr-item img{width:220px;height:220px;border:1px solid #e5e7eb;border-radius:.4rem}
+    .qr-item span{font-size:.9rem;color:#374151;text-align:center;max-width:220px;word-wrap:break-word}
+  </style>
+</head>
+<body>
+
+  <!-- Back to dashboard -->
+  <div class="top-bar">
+    <button onclick="location.href='dashboard.html'">← Back</button>
+  </div>
+
+  <h1>Register Participant</h1>
+
+  <input id="name" placeholder="Name">
+  <input id="email" placeholder="Email (optional)">
+  <button class="generate" onclick="register()">Generate QR & Save</button>
+
+  <p id="note" class="msg"></p>
+
+  <div id="gallery"></div>
+  <canvas id="work" width="220" height="220" style="display:none"></canvas>
+
+  <script>
+    function register(){
+      const name  = document.getElementById('name').value.trim();
+      if(!name) return alert('Name is required');
+      const email = document.getElementById('email').value.trim();
+
+      /* Plain‑text payload for the QR */
+      const payload = email ? `${name} – ${email}` : name;
+
+      const code = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+      /* Draw QR onto hidden canvas */
+      QRCode.toCanvas(work, payload, { width: 220 }, err => {
+        if (err) { alert(err); return; }
+
+        /* Persist participant list */
+        const list = JSON.parse(localStorage.getItem('qr_participants') || '[]');
+        list.push({ code, name, email });
+        localStorage.setItem('qr_participants', JSON.stringify(list));
+
+        /* Convert canvas to image URL */
+        const imgURL = work.toDataURL('image/png');
+
+        /* ---- Auto‑download as PNG ---- */
+        const link = document.createElement('a');
+        link.href = imgURL;
+        link.download = `${name.replace(/\s+/g,'_') || 'qr'}_${code}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        /* -------------------------------- */
+
+        /* Show card in gallery */
+        const card = document.createElement('div');
+        card.className = 'qr-item';
+        card.innerHTML = `<img src="${imgURL}" alt="QR"><span>${payload}</span>`;
+        gallery.prepend(card);
+
+        /* Feedback & clear inputs */
+        note.textContent = 'Saved! QR downloaded and added to gallery.';
+        document.getElementById('name').value  = '';
+        document.getElementById('email').value = '';
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Attendance | Scanner</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+  <script>
+    QrScanner.WORKER_PATH =
+      'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --accent:#3b82f6;
+      --success:#10b981;
+      --error:#ef4444;
+      --bg:#f9fafb;--rad:.85rem;--shadow:0 4px 14px rgba(0,0,0,.08);
+    }
+    *{
+      box-sizing:border-box;
+      font-family:Poppins,Arial,sans-serif;
+    }
+    body{
+      margin:0;background:var(--bg);
+      padding:1.5rem;
+      display:flex;
+      flex-direction:column;
+      align-items:center;gap:1.4rem;
+    }
+  
+    .top{
+      width:100%;
+      display:flex;
+      justify-content:flex-start;
+    }
+    .top button{
+      padding:.45rem 1rem;
+      border:none;
+      border-radius:.45rem;
+      background:#6b7280;
+      color:#fff;
+      font-size:.9rem;
+      cursor:pointer
+    }
+  
+    video{
+      width:320px;
+      height:240px;
+      background:#000;
+      border-radius:var(--rad);
+      box-shadow:var(--shadow);
+    }
+  
+    #status{
+      width:320px;
+      min-height:2.6rem;
+      border-radius:var(--rad);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:.5rem;
+      font-size:.95rem;
+      text-align:center;
+      background:#fff;
+      border:2px dashed var(--accent)
+    }
+    #status.ok{
+      background:#ecfdf5;
+      border-color:var(--success);
+      color:#065f46
+    }
+    #status.fail {
+      background:#fef2f2;
+      border-color:var(--error)
+      ;color:#b91c1c;
+    }
+    .ctrl{
+      padding:.6rem 1.2rem;
+      border:none;
+      border-radius:.5rem;
+      background:var(--accent);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+    }
+
+    .wrap{
+      width:100%;
+      max-width:480px;
+      overflow-x:auto;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:#fff;
+      border-radius:var(--rad);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      margin-top:.6rem;
+    }
+    th,td{
+      padding:.65rem 1rem;
+      border-bottom:1px solid #e5e7eb;
+      font-size:.85rem;
+      text-align:left;
+    }
+    th{
+      background:#f1f5f9;
+      font-weight:600}
+    tr:last-child td{border-bottom:none}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <button onclick="location.href='dashboard.html'">← Back</button>
+  </div>
+  <h1 style="margin:.2rem 0;font-size:1.55rem;font-weight:600;color:#111827">QR Attendance Scanner</h1>
+  <video id="preview"></video>
+  <div id="status">Waiting for scan…</div>
+  <button class="ctrl" onclick="toggleCamera()">⏯ Start / Stop Camera</button>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Time</th></tr></thead>
+      <tbody id="recent"></tbody>
+    </table>
+  </div>
+  <script>
+    const video  = document.getElementById('preview');
+    const status = document.getElementById('status');
+    const tbody  = document.getElementById('recent');
+    const scanner = new QrScanner(video, res => handleScan(res.data), {
+      returnDetailedScanResult: true
+    });
+    scanner.start();
+    let logs = JSON.parse(localStorage.getItem('qr_attendance') || '[]');
+    renderRecent();
+    function handleScan(raw){
+      const participants = JSON.parse(localStorage.getItem('qr_participants')||'[]');
+      let user = null;
+      const parts = raw.split(/–|-/);                 
+      if(parts.length >= 1){
+        const nameTxt  = parts[0].trim();
+        const emailTxt = (parts.slice(1).join('–')).trim(); 
+        user = participants.find(p =>
+          p.name.toLowerCase() === nameTxt.toLowerCase() &&
+          (emailTxt ? (p.email||'').toLowerCase() === emailTxt.toLowerCase() : true)
+        );
+      }
+      if(!user){
+        user = participants.find(p => p.code === raw);
+      }
+      if(!user){
+        flash('Unknown code', 'fail');
+        return;
+      }
+      const record = { code:user.code, time:new Date().toISOString() };
+      logs.push(record);
+      localStorage.setItem('qr_attendance', JSON.stringify(logs));
+      flash(`Recorded: ${user.name}${user.email?' ('+user.email+')':''}`, 'ok');
+      renderRecent();
+    }
+    function flash(msg, css){
+      status.textContent = msg;
+      status.className = ''; status.classList.add(css);
+      setTimeout(()=>status.className='', 4000);
+    }
+    function renderRecent(){
+      tbody.innerHTML = '';
+      const participants = JSON.parse(localStorage.getItem('qr_participants')||'[]');
+      [...logs].reverse().slice(0,10).forEach((r,i)=>{
+        const p = participants.find(u=>u.code===r.code) || {};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td>${p.name||'Unknown'}</td>
+          <td>${p.email||''}</td>
+          <td>${new Date(r.time).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    function toggleCamera(){
+      if(scanner.$isScanning){
+        scanner.stop();
+        status.textContent='Camera stopped'; status.className='';
+      }else{
+        scanner.start();
+        status.textContent='Waiting for scan…'; status.className='';
+      }
+    }
+  </script>
+</body>
+</html>
